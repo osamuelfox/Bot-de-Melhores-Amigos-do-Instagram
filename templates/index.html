@@ -897,10 +897,11 @@
 
       <div class="account-badge">
         <div class="account-avatar">👤</div>
-        <div>
+        <div style="flex-grow: 1;">
           <div class="account-name" id="account-name">@usuario</div>
           <div class="account-status">● Sessão ativa e pronta</div>
         </div>
+        <button class="btn btn-secondary" onclick="logout()" style="padding: 6px 12px; font-size: 13px; width: auto; margin: 0; background: rgba(239,68,68,0.1); color: var(--error); border-color: rgba(239,68,68,0.2);">Sair</button>
       </div>
 
       <span class="section-label">Selecionar usuários</span>
@@ -1388,8 +1389,11 @@
 
     // ── SECTIONS ───────────────────────────────────────────────
     function showSection(name) {
-      ['login','login-2fa','dashboard','preview','progress','done'].forEach(s => {
-        document.getElementById('section-' + s).style.display = s === name ? 'block' : 'none';
+      ['login','dashboard','preview','progress','done'].forEach(s => {
+        const el = document.getElementById('section-' + s);
+        if (el) {
+          el.style.display = s === name ? 'block' : 'none';
+        }
       });
       const onDash = isLoggedIn && name === 'dashboard';
       const mon = document.getElementById('section-monitor');
@@ -1457,7 +1461,22 @@
       }
     }
 
-
+    async function logout() {
+      if (!confirm("Tem certeza que deseja sair desta conta?")) return;
+      
+      try {
+        await fetch('/api/logout', { method: 'POST' });
+      } catch (err) {
+        console.error("Erro ao fazer logout", err);
+      }
+      
+      isLoggedIn = false;
+      document.getElementById('account-name').textContent = '@usuario';
+      setLoginStatus('idle', 'Aguardando login...');
+      enableLoginBtns();
+      showSection('login');
+      appendLog("Desconectado da conta atual.", "warning");
+    }
 
     // ── OPERAÇÃO ───────────────────────────────────────────────
     async function startOperation(mode) {

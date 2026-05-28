@@ -221,6 +221,26 @@ def login_visual():
     threading.Thread(target=_do_login, daemon=True).start()
     return jsonify({"status": "started"})
 
+
+@app.route("/api/logout", methods=["POST"])
+def api_logout():
+    with lock:
+        state["client"] = None
+        state["username"] = None
+        state["user_id"] = None
+        state["logged_in"] = False
+        state["session_type"] = None
+        
+    try:
+        import os
+        if os.path.exists("session.json"):
+            os.remove("session.json")
+            log("Sessao anterior removida do disco (session.json).", "info")
+    except Exception as e:
+        log(f"Erro ao remover session.json: {e}", "warning")
+
+    return jsonify({"status": "success", "message": "Desconectado com sucesso."})
+
 @app.route("/api/start", methods=["POST"])
 def start_operation():
     if not state["logged_in"]:
