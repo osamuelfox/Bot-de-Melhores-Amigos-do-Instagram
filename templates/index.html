@@ -1,0 +1,1914 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CloseFriends.AI — Automação Instagram</title>
+  <meta name="description" content="Adicione seguidores aos seus Melhores Amigos do Instagram automaticamente com segurança e inteligência." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ── RESET ─────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #050810;
+      --surface:     #0c1120;
+      --surface2:    #111827;
+      --surface3:    #1a2235;
+      --border:      rgba(59,130,246,.12);
+      --border2:     rgba(59,130,246,.22);
+      --text:        #e8edf8;
+      --text2:       #8ba3c7;
+      --muted:       #4a6080;
+      --success:     #10b981;
+      --warning:     #f59e0b;
+      --error:       #ef4444;
+      --info:        #60a5fa;
+      --blue1:       #1d4ed8;
+      --blue2:       #2563eb;
+      --blue3:       #3b82f6;
+      --blue4:       #60a5fa;
+      --blue5:       #93c5fd;
+      --gradient:    linear-gradient(135deg, #1d4ed8 0%, #2563eb 40%, #3b82f6 70%, #60a5fa 100%);
+      --gradient2:   linear-gradient(135deg, #0ea5e9 0%, #2563eb 50%, #7c3aed 100%);
+      --glow:        0 0 40px rgba(37,99,235,.25);
+      --radius:      14px;
+      --radius-sm:   9px;
+      --radius-xs:   6px;
+      --shadow:      0 4px 24px rgba(0,0,0,.4);
+      --shadow-lg:   0 8px 48px rgba(0,0,0,.6);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow-x: hidden;
+    }
+
+    /* ── BACKGROUND ────────────────────────────────────────── */
+    .bg-grid {
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(37,99,235,.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(37,99,235,.04) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .bg-glow-1 {
+      position: fixed;
+      top: -20vh;
+      left: -10vw;
+      width: 60vw;
+      height: 60vh;
+      background: radial-gradient(ellipse at center, rgba(37,99,235,.12) 0%, transparent 65%);
+      pointer-events: none;
+      z-index: 0;
+      animation: glow-float 8s ease-in-out infinite;
+    }
+
+    .bg-glow-2 {
+      position: fixed;
+      bottom: -20vh;
+      right: -10vw;
+      width: 50vw;
+      height: 50vh;
+      background: radial-gradient(ellipse at center, rgba(124,58,237,.08) 0%, transparent 65%);
+      pointer-events: none;
+      z-index: 0;
+      animation: glow-float 10s ease-in-out infinite reverse;
+    }
+
+    @keyframes glow-float {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      50%       { transform: translate(20px, 20px) scale(1.05); }
+    }
+
+    /* ── LAYOUT WRAPPER ────────────────────────────────────── */
+    .page-wrap {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 520px;
+      padding: 0 16px 80px;
+    }
+
+    /* ── HEADER ─────────────────────────────────────────────── */
+    header {
+      text-align: center;
+      padding: 52px 0 40px;
+    }
+
+    .logo-mark {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 56px;
+      height: 56px;
+      border-radius: 16px;
+      background: var(--gradient);
+      box-shadow: var(--glow), 0 8px 32px rgba(37,99,235,.4);
+      font-size: 26px;
+      margin-bottom: 16px;
+      animation: float 4s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50%       { transform: translateY(-6px); }
+    }
+
+    .logo-title {
+      font-size: 24px;
+      font-weight: 800;
+      background: linear-gradient(135deg, #93c5fd, #3b82f6, #a78bfa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -.5px;
+      margin-bottom: 6px;
+    }
+
+    .logo-sub {
+      font-size: 13px;
+      color: var(--text2);
+      font-weight: 400;
+      letter-spacing: .2px;
+    }
+
+    /* ── CARD ─────────────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      width: 100%;
+      margin-bottom: 12px;
+      backdrop-filter: blur(20px);
+      box-shadow: var(--shadow);
+      transition: border-color .3s, box-shadow .3s;
+    }
+
+    .card:hover { border-color: var(--border2); }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 22px;
+    }
+
+    .card-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: var(--radius-sm);
+      background: rgba(37,99,235,.15);
+      border: 1px solid rgba(59,130,246,.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .card-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: .2px;
+    }
+
+    .card-subtitle {
+      font-size: 11px;
+      color: var(--text2);
+      margin-top: 1px;
+    }
+
+    /* ── INPUTS ───────────────────────────────────────────── */
+    .field { margin-bottom: 14px; }
+
+    .field label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text2);
+      margin-bottom: 7px;
+      letter-spacing: .5px;
+      text-transform: uppercase;
+    }
+
+    .input-wrap {
+      position: relative;
+    }
+
+    .input-icon {
+      position: absolute;
+      left: 13px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 15px;
+      pointer-events: none;
+      opacity: .5;
+    }
+
+    .field input {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-size: 14px;
+      font-family: inherit;
+      padding: 12px 14px 12px 40px;
+      outline: none;
+      transition: border-color .2s, box-shadow .2s, background .2s;
+    }
+
+    .field input::placeholder { color: var(--muted); }
+
+    .field input:focus {
+      border-color: var(--blue3);
+      background: var(--surface3);
+      box-shadow: 0 0 0 3px rgba(59,130,246,.12);
+    }
+
+    /* ── BUTTONS ─────────────────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 13px 20px;
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-weight: 600;
+      font-family: inherit;
+      border: none;
+      cursor: pointer;
+      transition: all .2s ease;
+      text-decoration: none;
+      position: relative;
+      overflow: hidden;
+      user-select: none;
+      width: 100%;
+      margin-bottom: 8px;
+    }
+
+    .btn:disabled { opacity: .4; cursor: not-allowed; transform: none !important; }
+
+    .btn-primary {
+      background: var(--gradient);
+      color: #fff;
+      box-shadow: 0 4px 20px rgba(37,99,235,.35);
+      letter-spacing: .2px;
+    }
+
+    .btn-primary::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,.1), transparent);
+      opacity: 0;
+      transition: opacity .2s;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(37,99,235,.5);
+    }
+
+    .btn-primary:hover:not(:disabled)::before { opacity: 1; }
+    .btn-primary:active:not(:disabled) { transform: translateY(0); }
+
+    .btn-secondary {
+      background: var(--surface2);
+      color: var(--text2);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+      background: var(--surface3);
+      color: var(--text);
+      border-color: var(--border2);
+      transform: translateY(-1px);
+    }
+
+    /* ── ACTION BUTTONS GRID ─────────────────────────────── */
+    .actions-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .btn-action {
+      flex-direction: column;
+      gap: 6px;
+      padding: 16px 10px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all .2s;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn-action::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: var(--gradient);
+      opacity: 0;
+      transition: opacity .2s;
+    }
+
+    .btn-action-content { position: relative; z-index: 1; text-align: center; }
+
+    .btn-action .icon { font-size: 22px; display: block; margin-bottom: 4px; }
+    .btn-action .label { font-size: 12px; font-weight: 700; display: block; }
+    .btn-action .desc { font-size: 10px; color: var(--text2); font-weight: 400; display: block; transition: color .2s; }
+
+    .btn-action:hover:not(:disabled) {
+      border-color: var(--blue3);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 20px rgba(37,99,235,.2);
+    }
+
+    .btn-action.active::after { opacity: 1; }
+    .btn-action.active { color: #fff; border-color: transparent; box-shadow: 0 4px 20px rgba(37,99,235,.4); }
+    .btn-action.active .desc { color: rgba(255,255,255,.7); }
+
+    /* ── STATUS BAR ──────────────────────────────────────── */
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 11px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 18px;
+      transition: all .3s ease;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .status-bar.idle    { background: rgba(255,255,255,.03); color: var(--muted);  border: 1px solid var(--border); }
+    .status-bar.idle .status-dot { background: var(--muted); }
+    .status-bar.loading { background: rgba(59,130,246,.08); color: var(--info);   border: 1px solid rgba(59,130,246,.2); }
+    .status-bar.loading .status-dot { background: var(--info); animation: blink 1s infinite; }
+    .status-bar.success { background: rgba(16,185,129,.08); color: var(--success); border: 1px solid rgba(16,185,129,.2); }
+    .status-bar.success .status-dot { background: var(--success); }
+    .status-bar.error   { background: rgba(239,68,68,.08);  color: var(--error);  border: 1px solid rgba(239,68,68,.2); }
+    .status-bar.error .status-dot { background: var(--error); }
+
+    @keyframes blink { 0%,100% { opacity:1; } 50% { opacity:.3; } }
+
+    .spinner {
+      width: 14px; height: 14px;
+      border: 2px solid rgba(96,165,250,.3);
+      border-top-color: var(--info);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── ACCOUNT BADGE ───────────────────────────────────── */
+    .account-badge {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 16px;
+      background: rgba(16,185,129,.06);
+      border: 1px solid rgba(16,185,129,.2);
+      border-radius: var(--radius-sm);
+      margin-bottom: 22px;
+    }
+
+    .account-avatar {
+      width: 42px; height: 42px;
+      border-radius: 50%;
+      background: var(--gradient);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+      box-shadow: 0 4px 16px rgba(37,99,235,.3);
+    }
+
+    .account-name { font-weight: 700; font-size: 15px; margin-bottom: 2px; }
+    .account-status { font-size: 11px; color: var(--success); font-weight: 500; }
+
+    /* ── DIVIDER ────────────────────────────────────────── */
+    .divider {
+      display: flex; align-items: center; gap: 10px;
+      margin: 14px 0; color: var(--muted); font-size: 11px; font-weight: 500;
+    }
+    .divider::before, .divider::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
+    }
+
+    /* ── PROGRESS ───────────────────────────────────────── */
+    .progress-wrap { margin: 18px 0 8px; }
+
+    .progress-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 8px; font-size: 13px;
+    }
+
+    .progress-label { color: var(--text2); font-weight: 500; }
+    .progress-count { font-weight: 800; font-size: 15px; color: var(--blue4); }
+
+    .progress-track {
+      background: var(--surface2);
+      border-radius: 99px; height: 6px; overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    .progress-bar {
+      height: 100%;
+      background: var(--gradient);
+      border-radius: 99px;
+      width: 0%;
+      transition: width .5s cubic-bezier(.4,0,.2,1);
+      box-shadow: 0 0 16px rgba(59,130,246,.4);
+    }
+
+    .progress-bar.indeterminate {
+      width: 35%;
+      animation: indeterminate 1.6s ease-in-out infinite;
+    }
+
+    @keyframes indeterminate {
+      0%   { transform: translateX(-100%); }
+      100% { transform: translateX(350%); }
+    }
+
+    /* ── LOG ────────────────────────────────────────────── */
+    .log-title {
+      font-size: 10px; font-weight: 700; color: var(--text2);
+      letter-spacing: .8px; text-transform: uppercase; margin-bottom: 10px;
+      display: flex; align-items: center; gap: 6px;
+    }
+
+    .log-title::before {
+      content: ''; width: 3px; height: 12px;
+      background: var(--gradient); border-radius: 99px;
+    }
+
+    #log-list {
+      background: #070c18;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px;
+      height: 230px;
+      overflow-y: auto;
+      font-size: 12px;
+      line-height: 1.7;
+    }
+
+    #log-list::-webkit-scrollbar { width: 3px; }
+    #log-list::-webkit-scrollbar-track { background: transparent; }
+    #log-list::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 99px; }
+
+    .log-entry {
+      display: flex; gap: 10px; padding: 2px 0;
+      animation: fadeUp .25s ease;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(4px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .log-time { color: var(--muted); flex-shrink: 0; font-size: 10px; margin-top: 2px; font-family: monospace; }
+    .log-msg.info    { color: #8ba3c7; }
+    .log-msg.success { color: var(--success); }
+    .log-msg.warning { color: var(--warning); }
+    .log-msg.error   { color: var(--error); }
+
+    /* ── SECTIONS VISIBILITY ─────────────────────────────── */
+    #section-login     { display: block; }
+    #section-login-2fa { display: none; }
+    #section-dashboard { display: none; }
+    #section-preview   { display: none; }
+    #section-progress  { display: none; }
+    #section-done      { display: none; }
+    #section-monitor   { display: none; }
+    #section-mf        { display: none; }
+
+    /* ── DONE SCREEN ─────────────────────────────────────── */
+    .done-screen { text-align: center; padding: 8px 0; }
+
+    .done-icon {
+      font-size: 52px; margin-bottom: 14px;
+      animation: pop .4s cubic-bezier(.36,.07,.19,.97);
+    }
+
+    @keyframes pop {
+      0%   { transform: scale(0); }
+      70%  { transform: scale(1.15); }
+      100% { transform: scale(1); }
+    }
+
+    .done-title { font-size: 20px; font-weight: 800; margin-bottom: 6px; }
+    .done-sub   { color: var(--text2); font-size: 13px; margin-bottom: 22px; line-height: 1.5; }
+
+    /* ── PREVIEW ─────────────────────────────────────────── */
+    .preview-count {
+      font-size: 48px; font-weight: 900;
+      background: var(--gradient);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      text-align: center; margin: 16px 0 4px;
+    }
+
+    /* ── WARNING BOX ─────────────────────────────────────── */
+    .info-box {
+      background: rgba(59,130,246,.06);
+      border: 1px solid rgba(59,130,246,.15);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      font-size: 12px;
+      color: var(--text2);
+      line-height: 1.6;
+      margin-top: 14px;
+    }
+
+    .info-box strong { display: block; margin-bottom: 3px; font-size: 12px; color: var(--blue5); }
+
+    /* ── MONITOR CARD ─────────────────────────────────────── */
+    #section-monitor, #section-mf {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px 28px;
+      width: 100%;
+      margin-bottom: 12px;
+      backdrop-filter: blur(20px);
+      box-shadow: var(--shadow);
+      transition: border-color .4s, box-shadow .4s;
+    }
+
+    #section-monitor.active {
+      border-color: rgba(16,185,129,.3);
+      box-shadow: var(--shadow), 0 0 0 1px rgba(16,185,129,.1), 0 8px 40px rgba(16,185,129,.06);
+    }
+
+    #section-mf.active {
+      border-color: rgba(124,58,237,.3);
+      box-shadow: var(--shadow), 0 0 0 1px rgba(167,139,250,.08), 0 8px 40px rgba(124,58,237,.08);
+    }
+
+    #mf-log {
+      background: #070c18;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px; height: 150px; overflow-y: auto;
+      font-size: 12px; line-height: 1.65;
+    }
+
+    #mf-log::-webkit-scrollbar { width: 3px; }
+    #mf-log::-webkit-scrollbar-track { background: transparent; }
+    #mf-log::-webkit-scrollbar-thumb { background: rgba(167,139,250,.3); border-radius: 99px; }
+
+    /* Toggle */
+    .monitor-header {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; margin-bottom: 18px;
+    }
+
+    .monitor-title-group { display: flex; align-items: center; gap: 10px; }
+
+    .monitor-live-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: rgba(16,185,129,.1); border: 1px solid rgba(16,185,129,.25);
+      border-radius: 99px; padding: 3px 9px;
+      font-size: 10px; font-weight: 700; color: var(--success);
+      letter-spacing: .3px; text-transform: uppercase;
+      opacity: 0; transition: opacity .3s; flex-shrink: 0;
+    }
+
+    .monitor-live-badge.visible { opacity: 1; }
+
+    .monitor-live-badge .pdot {
+      width: 6px; height: 6px; border-radius: 50%; background: var(--success);
+      animation: pdot 1.4s ease-in-out infinite;
+    }
+
+    @keyframes pdot {
+      0%,100% { opacity:1; transform:scale(1); }
+      50%      { opacity:.4; transform:scale(.6); }
+    }
+
+    /* Toggle switch */
+    .toggle { position: relative; width: 46px; height: 24px; flex-shrink: 0; }
+    .toggle input { display: none; }
+
+    .toggle-track {
+      position: absolute; inset: 0;
+      background: var(--surface3); border: 1px solid var(--border);
+      border-radius: 99px; cursor: pointer;
+      transition: background .3s, border-color .3s;
+    }
+
+    .toggle-thumb {
+      position: absolute;
+      top: 3px; left: 3px;
+      width: 16px; height: 16px;
+      border-radius: 50%; background: var(--muted);
+      transition: transform .3s, background .3s;
+      pointer-events: none;
+    }
+
+    .toggle input:checked ~ .toggle-track {
+      background: rgba(16,185,129,.2); border-color: rgba(16,185,129,.4);
+    }
+
+    .toggle input:checked ~ .toggle-thumb {
+      transform: translateX(22px); background: var(--success);
+    }
+
+    /* Interval chips */
+    .interval-row {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 16px; flex-wrap: wrap;
+    }
+
+    .interval-label { font-size: 11px; color: var(--text2); font-weight: 500; flex-shrink: 0; }
+
+    .chips { display: flex; gap: 5px; flex-wrap: wrap; }
+
+    .chip {
+      padding: 4px 11px;
+      border-radius: 99px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--text2);
+      font-size: 11px; font-weight: 600;
+      cursor: pointer; font-family: inherit;
+      transition: all .2s;
+    }
+
+    .chip:hover { border-color: var(--blue3); color: var(--blue5); }
+
+    .chip.sel {
+      border-color: rgba(16,185,129,.4);
+      background: rgba(16,185,129,.1);
+      color: var(--success);
+    }
+
+    /* Stats grid */
+    .monitor-stats {
+      display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 16px;
+    }
+
+    .stat-box {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 12px 8px; text-align: center;
+    }
+
+    .stat-val {
+      font-size: 24px; font-weight: 900; line-height: 1; margin-bottom: 4px;
+    }
+
+    .stat-val.g { color: var(--success); }
+    .stat-val.b { color: var(--blue4); }
+    .stat-val.o { color: var(--warning); }
+
+    .stat-lbl {
+      font-size: 9px; color: var(--muted); text-transform: uppercase;
+      letter-spacing: .6px; font-weight: 600;
+    }
+
+    /* Monitor log */
+    .mlog-head {
+      font-size: 10px; font-weight: 700; color: var(--text2);
+      letter-spacing: .8px; text-transform: uppercase; margin-bottom: 8px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+
+    .mlog-head::before {
+      display: none;
+    }
+
+    #monitor-log {
+      background: #070c18;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px; height: 150px; overflow-y: auto;
+      font-size: 12px; line-height: 1.65;
+    }
+
+    #monitor-log::-webkit-scrollbar { width: 3px; }
+    #monitor-log::-webkit-scrollbar-track { background: transparent; }
+    #monitor-log::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 99px; }
+
+    /* Countdown */
+    .countdown-row {
+      display: flex; align-items: center; gap: 8px;
+      margin-top: 12px; font-size: 11px; color: var(--text2);
+    }
+
+    .countdown-track {
+      flex: 1; background: var(--surface2); border-radius: 99px;
+      height: 3px; overflow: hidden; border: 1px solid var(--border);
+    }
+
+    .countdown-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--success), var(--blue3));
+      border-radius: 99px; width: 100%;
+      transition: width 1s linear;
+    }
+
+    .countdown-num {
+      font-size: 11px; font-family: monospace; color: var(--success);
+      min-width: 36px; text-align: right;
+    }
+
+    /* ── TOAST ───────────────────────────────────────────── */
+    .follower-toast {
+      position: fixed; bottom: 24px; right: 24px;
+      background: var(--surface);
+      border: 1px solid rgba(16,185,129,.3);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      display: flex; align-items: center; gap: 12px;
+      box-shadow: var(--shadow-lg);
+      z-index: 9999;
+      animation: slideIn .4s cubic-bezier(.36,.07,.19,.97);
+      max-width: 290px;
+    }
+
+    @keyframes slideIn {
+      from { transform: translateX(120%); opacity: 0; }
+      to   { transform: translateX(0); opacity: 1; }
+    }
+
+    .follower-toast.hiding {
+      animation: slideOut .4s ease forwards;
+    }
+
+    @keyframes slideOut {
+      to { transform: translateX(120%); opacity: 0; }
+    }
+
+    .toast-av {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: var(--gradient); display: flex; align-items: center;
+      justify-content: center; font-size: 16px; flex-shrink: 0;
+    }
+
+    .toast-title { font-size: 11px; font-weight: 700; color: var(--success); }
+    .toast-sub { font-size: 11px; color: var(--text2); margin-top: 2px; }
+
+    /* ── FOOTER ──────────────────────────────────────────── */
+    footer {
+      text-align: center; font-size: 11px; color: var(--muted);
+      padding: 0 0 32px; position: relative; z-index: 1; width: 100%;
+    }
+
+    footer a { color: var(--blue4); text-decoration: none; }
+    footer a:hover { color: var(--blue5); }
+
+    /* ── SECTION HEADING ─────────────────────────────────── */
+    .section-label {
+      font-size: 10px; font-weight: 700; color: var(--blue4);
+      text-transform: uppercase; letter-spacing: 1px;
+      margin-bottom: 6px; display: block;
+    }
+
+    /* ── RANGE SLIDER (delay) ─────────────────────────────── */
+    #delay-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      background: var(--gradient);
+      border: 2px solid rgba(255,255,255,.15);
+      box-shadow: 0 0 10px rgba(37,99,235,.5), 0 2px 8px rgba(0,0,0,.4);
+      cursor: pointer;
+      transition: transform .15s, box-shadow .15s;
+    }
+    #delay-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+      box-shadow: 0 0 18px rgba(59,130,246,.7), 0 4px 12px rgba(0,0,0,.4);
+    }
+    #delay-slider::-webkit-slider-thumb:active {
+      transform: scale(1.1);
+    }
+    #delay-slider::-moz-range-thumb {
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      background: var(--gradient);
+      border: 2px solid rgba(255,255,255,.15);
+      box-shadow: 0 0 10px rgba(37,99,235,.5);
+      cursor: pointer;
+    }
+
+    /* ── RESPONSIVE ──────────────────────────────────────── */
+    @media (max-width: 480px) {
+      .page-wrap { padding: 0 12px 60px; }
+      .card { padding: 20px 18px; }
+      #section-monitor, #section-mf { padding: 20px 18px; }
+      .logo-title { font-size: 20px; }
+      .monitor-stats { grid-template-columns: 1fr 1fr 1fr; }
+      .stat-val { font-size: 20px; }
+      .actions-grid { grid-template-columns: 1fr 1fr; }
+      .follower-toast { left: 12px; right: 12px; max-width: none; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="bg-grid"></div>
+  <div class="bg-glow-1"></div>
+  <div class="bg-glow-2"></div>
+
+  <div class="page-wrap">
+
+    <!-- HEADER -->
+    <header>
+      <div class="logo-mark">⭐</div>
+      <div class="logo-title">CloseFriends.AI</div>
+      <div class="logo-sub">Automação inteligente de Melhores Amigos · Instagram</div>
+    </header>
+
+    <!-- ── LOGIN ──────────────────────────────────────────── -->
+    <section class="card" id="section-login">
+      <div class="card-header">
+        <div class="card-icon">🔐</div>
+        <div>
+          <div class="card-title">Autenticação</div>
+          <div class="card-subtitle">Conecte sua conta do Instagram</div>
+        </div>
+      </div>
+
+      <div class="status-bar idle" id="login-status">
+        <div class="status-dot"></div>
+        <span id="login-status-text">Aguardando login...</span>
+      </div>
+
+      <div class="info-box" style="margin-bottom: 20px;">
+        <strong>💡 Login Visual</strong>
+        O navegador será aberto para você fazer login com segurança. Você pode resolver qualquer desafio de segurança, 2FA ou captcha normalmente.
+      </div>
+
+      <button class="btn btn-primary" id="btn-visual-login" onclick="startVisualLogin()">
+        🌐 Abrir Navegador e Fazer Login
+      </button>
+
+    </section>
+
+
+    <!-- ── DASHBOARD ────────────────────────────────────────── -->
+    <section class="card" id="section-dashboard">
+      <div class="card-header">
+        <div class="card-icon">✅</div>
+        <div>
+          <div class="card-title">Conta Conectada</div>
+          <div class="card-subtitle">Selecione quem adicionar aos Melhores Amigos</div>
+        </div>
+      </div>
+
+      <div class="account-badge">
+        <div class="account-avatar">👤</div>
+        <div>
+          <div class="account-name" id="account-name">@usuario</div>
+          <div class="account-status">● Sessão ativa e pronta</div>
+        </div>
+      </div>
+
+      <span class="section-label">Selecionar usuários</span>
+      <div class="actions-grid">
+        <button class="btn-action" id="btn-followers" onclick="startOperation('followers')">
+          <div class="btn-action-content">
+            <span class="icon">👥</span>
+            <span class="label">Seguidores</span>
+            <span class="desc">Quem me segue</span>
+          </div>
+        </button>
+        <button class="btn-action" id="btn-following" onclick="startOperation('following')">
+          <div class="btn-action-content">
+            <span class="icon">💙</span>
+            <span class="label">Seguindo</span>
+            <span class="desc">Quem eu sigo</span>
+          </div>
+        </button>
+        <button class="btn-action" id="btn-both" onclick="startOperation('both')">
+          <div class="btn-action-content">
+            <span class="icon">🔄</span>
+            <span class="label">Ambos</span>
+            <span class="desc">Todos</span>
+          </div>
+        </button>
+        <button class="btn-action" id="btn-mutuals" onclick="startOperation('mutuals')">
+          <div class="btn-action-content">
+            <span class="icon">🤝</span>
+            <span class="label">Mútuos</span>
+            <span class="desc">Sigo de volta</span>
+          </div>
+        </button>
+      </div>
+
+      <div class="info-box" style="margin-top:14px">
+        <strong>⏱️ Sobre o processamento</strong>
+        Adição <strong>um a um</strong> com delays aleatórios entre cada usuário — você escolhe o intervalo na próxima tela. Protege sua conta do bloqueio.
+      </div>
+    </section>
+
+    <!-- ── MONITOR ───────────────────────────────────────────── -->
+    <div id="section-monitor">
+
+      <div class="monitor-header">
+        <div class="monitor-title-group">
+          <div class="card-icon">🔔</div>
+          <div>
+            <div class="card-title">Monitor de Novos Seguidores</div>
+            <div class="card-subtitle">Adiciona ao Close Friends automaticamente</div>
+          </div>
+          <div class="monitor-live-badge" id="monitor-live-badge">
+            <div class="pdot"></div> AO VIVO
+          </div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="monitor-toggle" onchange="onMonitorToggle(this)" />
+          <div class="toggle-track"></div>
+          <div class="toggle-thumb"></div>
+        </label>
+      </div>
+
+      <!-- Intervalo -->
+      <div class="interval-row" id="monitor-interval-row">
+        <span class="interval-label">Verificar a cada:</span>
+        <div class="chips">
+          <button class="chip" data-min="2" onclick="selectChip(this)">2 min</button>
+          <button class="chip sel" data-min="5" onclick="selectChip(this)">5 min</button>
+          <button class="chip" data-min="10" onclick="selectChip(this)">10 min</button>
+          <button class="chip" data-min="30" onclick="selectChip(this)">30 min</button>
+          <button class="chip" data-min="60" onclick="selectChip(this)">60 min</button>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="monitor-stats">
+        <div class="stat-box">
+          <div class="stat-val g" id="monitor-stat-added">0</div>
+          <div class="stat-lbl">Adicionados</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val b" id="monitor-stat-cycles">0</div>
+          <div class="stat-lbl">Ciclos</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val o" id="monitor-stat-next">—</div>
+          <div class="stat-lbl">Próximo</div>
+        </div>
+      </div>
+
+      <!-- Log -->
+      <div class="mlog-head">
+        <span>📋 Atividade</span>
+        <span id="monitor-last-check" style="font-size:10px;color:var(--muted);font-weight:400">Aguardando...</span>
+      </div>
+      <div id="monitor-log"></div>
+
+      <!-- Countdown -->
+      <div class="countdown-row" id="monitor-countdown-row" style="display:none">
+        <span style="flex-shrink:0;font-size:12px">🔄</span>
+        <div class="countdown-track">
+          <div class="countdown-fill" id="monitor-countdown-fill"></div>
+        </div>
+        <span class="countdown-num" id="monitor-countdown-num">--</span>
+      </div>
+
+    </div>
+
+    <!-- ── MONITOR DE NOVOS SEGUINDO ─────────────────────────── -->
+    <div id="section-mf">
+
+      <div class="monitor-header">
+        <div class="monitor-title-group">
+          <div class="card-icon" style="background:rgba(124,58,237,.15);border-color:rgba(167,139,250,.2)">💙</div>
+          <div>
+            <div class="card-title">Monitor de Novos Seguindo</div>
+            <div class="card-subtitle">Quem você seguir vai para o Close Friends</div>
+          </div>
+          <div class="monitor-live-badge" id="mf-live-badge" style="background:rgba(124,58,237,.1);border-color:rgba(167,139,250,.25);color:#a78bfa">
+            <div class="pdot" style="background:#a78bfa"></div> AO VIVO
+          </div>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="mf-toggle" onchange="onMfToggle(this)" />
+          <div class="toggle-track" style="--toggle-on-bg:rgba(124,58,237,.2);--toggle-on-border:rgba(167,139,250,.4)"></div>
+          <div class="toggle-thumb" style="--thumb-on-bg:#a78bfa"></div>
+        </label>
+      </div>
+
+      <!-- Intervalo -->
+      <div class="interval-row" id="mf-interval-row">
+        <span class="interval-label">Verificar a cada:</span>
+        <div class="chips">
+          <button class="chip" data-min="2" onclick="selectMfChip(this)">2 min</button>
+          <button class="chip sel" data-min="5" onclick="selectMfChip(this)" style="border-color:rgba(167,139,250,.4);background:rgba(124,58,237,.1);color:#a78bfa">5 min</button>
+          <button class="chip" data-min="10" onclick="selectMfChip(this)">10 min</button>
+          <button class="chip" data-min="30" onclick="selectMfChip(this)">30 min</button>
+          <button class="chip" data-min="60" onclick="selectMfChip(this)">60 min</button>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="monitor-stats">
+        <div class="stat-box">
+          <div class="stat-val" style="color:#a78bfa" id="mf-stat-added">0</div>
+          <div class="stat-lbl">Adicionados</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val b" id="mf-stat-cycles">0</div>
+          <div class="stat-lbl">Ciclos</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val o" id="mf-stat-next">—</div>
+          <div class="stat-lbl">Próximo</div>
+        </div>
+      </div>
+
+      <!-- Log -->
+      <div class="mlog-head">
+        <span>📋 Atividade</span>
+        <span id="mf-last-check" style="font-size:10px;color:var(--muted);font-weight:400">Aguardando...</span>
+      </div>
+      <div id="mf-log"></div>
+
+      <!-- Countdown -->
+      <div class="countdown-row" id="mf-countdown-row" style="display:none">
+        <span style="flex-shrink:0;font-size:12px">🔄</span>
+        <div class="countdown-track">
+          <div class="countdown-fill" id="mf-countdown-fill" style="background:linear-gradient(90deg,#7c3aed,#a78bfa)"></div>
+        </div>
+        <span class="countdown-num" id="mf-countdown-num" style="color:#a78bfa">--</span>
+      </div>
+
+    </div>
+
+    <!-- ── PREVIEW ───────────────────────────────────────────── -->
+    <section class="card" id="section-preview">
+      <div class="card-header">
+        <div class="card-icon">👀</div>
+        <div>
+          <div class="card-title">Prévia</div>
+          <div class="card-subtitle">Confirme e ajuste antes de iniciar</div>
+        </div>
+      </div>
+
+      <div class="done-screen" style="padding-top:0">
+        <div class="preview-count" id="preview-count">—</div>
+        <div class="done-title" id="preview-title" style="font-size:16px">Buscando usuários...</div>
+        <div class="done-sub" id="preview-sub">Aguarde enquanto buscamos a lista no Instagram.</div>
+
+        <div class="spinner" id="preview-spinner" style="margin:20px auto;width:28px;height:28px;border-width:3px"></div>
+
+        <div id="preview-actions" style="display:none;margin-top:16px">
+
+          <!-- Seletor de intervalo entre adições -->
+          <div style="background:rgba(37,99,235,.06);border:1px solid rgba(59,130,246,.15);border-radius:10px;padding:16px 18px;margin-bottom:16px;text-align:left">
+            
+            <!-- Delay Slider -->
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+              <div style="font-size:11px;font-weight:700;color:var(--blue5);letter-spacing:.4px;text-transform:uppercase">⏱️ Intervalo entre cada lote</div>
+              <div id="delay-display" style="font-size:22px;font-weight:900;background:linear-gradient(135deg,#60a5fa,#3b82f6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;min-width:60px;text-align:right">40s</div>
+            </div>
+
+            <div style="position:relative;padding:4px 0 8px">
+              <input
+                type="range"
+                id="delay-slider"
+                min="0" max="300" step="5" value="40"
+                oninput="onDelaySlider(this)"
+                style="
+                  width:100%; height:6px; appearance:none; -webkit-appearance:none;
+                  background:var(--surface3); border-radius:99px; outline:none; cursor:pointer;
+                  border:1px solid var(--border);
+                "
+              />
+            </div>
+            
+            <!-- Marcadores 0 / 1 / 2 / 3 / 4 / 5 min -->
+            <div style="display:flex;justify-content:space-between;margin-top:2px;margin-bottom:16px;">
+              <span style="font-size:9px;color:var(--muted)">0s</span>
+              <span style="font-size:9px;color:var(--muted)">1 min</span>
+              <span style="font-size:9px;color:var(--muted)">2 min</span>
+              <span style="font-size:9px;color:var(--muted)">3 min</span>
+              <span style="font-size:9px;color:var(--muted)">4 min</span>
+              <span style="font-size:9px;color:var(--muted)">5 min</span>
+            </div>
+
+            <div style="height:1px;background:var(--border);margin-bottom:16px;"></div>
+
+            <!-- Batch Size Slider -->
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+              <div style="font-size:11px;font-weight:700;color:var(--blue5);letter-spacing:.4px;text-transform:uppercase">👥 Usuários por lote</div>
+              <div id="batch-display" style="font-size:22px;font-weight:900;background:linear-gradient(135deg,#a78bfa,#7c3aed);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;min-width:60px;text-align:right">1</div>
+            </div>
+
+            <div style="position:relative;padding:4px 0 8px">
+              <input
+                type="range"
+                id="batch-slider"
+                min="1" max="50" step="1" value="1"
+                oninput="onBatchSlider(this)"
+                style="
+                  width:100%; height:6px; appearance:none; -webkit-appearance:none;
+                  background:linear-gradient(90deg, #7c3aed 0%, var(--surface3) 0%); border-radius:99px; outline:none; cursor:pointer;
+                  border:1px solid var(--border);
+                "
+              />
+            </div>
+            
+            <div style="display:flex;justify-content:space-between;margin-top:2px">
+              <span style="font-size:9px;color:var(--muted)">1</span>
+              <span style="font-size:9px;color:var(--muted)">50</span>
+            </div>
+
+            <div id="delay-hint" style="font-size:11px;color:var(--text2);margin-top:16px;line-height:1.5">Menor = mais rápido, maior risco de bloqueio. <strong style="color:var(--blue4)">40s</strong> é o recomendado.</div>
+            <div id="preview-eta" style="font-size:12px;color:var(--success);margin-top:8px;font-weight:600"></div>
+          </div>
+
+          <button class="btn btn-primary" onclick="confirmStartAddition()">
+            ▶️ Confirmar e Iniciar Adição
+          </button>
+          <button class="btn btn-secondary" onclick="resetToMenu()">Cancelar</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── PROGRESSO ─────────────────────────────────────────── -->
+    <section class="card" id="section-progress">
+      <div class="card-header">
+        <div class="card-icon">⚙️</div>
+        <div>
+          <div class="card-title">Processando</div>
+          <div class="card-subtitle">Adicionando aos Melhores Amigos...</div>
+        </div>
+      </div>
+
+      <div class="progress-wrap">
+        <div class="progress-header">
+          <span class="progress-label">Progresso</span>
+          <span class="progress-count" id="progress-count">0 / 0</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-bar indeterminate" id="progress-bar"></div>
+        </div>
+      </div>
+
+      <div style="margin-top:18px">
+        <div class="log-title">Log em tempo real</div>
+        <div id="log-list"></div>
+      </div>
+    </section>
+
+    <!-- ── CONCLUÍDO ─────────────────────────────────────────── -->
+    <section class="card" id="section-done">
+      <div class="done-screen">
+        <div class="done-icon">🎉</div>
+        <div class="done-title">Concluído!</div>
+        <div class="done-sub" id="done-sub">Usuários adicionados aos Melhores Amigos.</div>
+        <button class="btn btn-primary" onclick="resetToMenu()" style="max-width:240px;margin:0 auto">
+          ↩ Voltar ao Menu
+        </button>
+      </div>
+    </section>
+
+  </div><!-- /page-wrap -->
+
+  <footer>
+    CloseFriends.AI — Uso pessoal &nbsp;|&nbsp;
+    <a href="https://help.instagram.com/581066165581870" target="_blank">Termos do Instagram</a>
+  </footer>
+
+  <script>
+    // ── STATE ──────────────────────────────────────────────────
+    let isLoggedIn       = false;
+    let isRunning        = false;
+    let eventSource      = null;
+    let monitorActive    = false;
+    let selIntervalMin   = 5;
+    let cdInterval       = null;
+    let cdSec            = 0;
+    let cdTotal          = 0;
+    let selDelaySec      = 40;   // Intervalo padrão entre adições (segundos)
+    let selBatchSize     = 1;    // Tamanho do lote
+    let previewUserCount = 0;    // Guarda o count para calcular ETA
+
+    // ── SSE ────────────────────────────────────────────────────
+    function connectSSE() {
+      if (eventSource) eventSource.close();
+      eventSource = new EventSource('/api/events');
+      eventSource.onmessage = (e) => handleEvent(JSON.parse(e.data));
+      eventSource.onerror   = () => setTimeout(connectSSE, 3000);
+    }
+
+    function handleEvent(ev) {
+      switch (ev.type) {
+
+        case 'login_success':
+          isLoggedIn = true;
+          document.getElementById('account-name').textContent = '@' + ev.username;
+          setLoginStatus('success', '✅ Conectado como @' + ev.username);
+          showSection('dashboard');
+          break;
+
+        case 'login_error':
+          setLoginStatus('error', '❌ ' + ev.message);
+          enableLoginBtns();
+          break;
+
+        case 'preview_ready':
+          previewUserCount = ev.count;
+          document.getElementById('preview-count').textContent = ev.count;
+          document.getElementById('preview-title').textContent = ev.count + ' usuários a adicionar';
+          document.getElementById('preview-sub').textContent = 'Adição individual ou em lote com delay configurável — sua conta fica protegida.';
+          document.getElementById('preview-spinner').style.display = 'none';
+          document.getElementById('preview-actions').style.display = 'block';
+          // Inicializa o gradiente dos sliders com o valor padrão
+          const sliderInit = document.getElementById('delay-slider');
+          if (sliderInit) onDelaySlider(sliderInit);
+          const batchInit = document.getElementById('batch-slider');
+          if (batchInit) onBatchSlider(batchInit);
+          updateEta();
+          showSection('preview');
+          break;
+
+        case 'operation_started':
+          showSection('progress');
+          setProgress(0, 0);
+          break;
+
+        case 'progress': setProgress(ev.done, ev.total); break;
+
+        case 'log': 
+          appendLog(ev.message, ev.level || 'info'); 
+          // Se ainda está na tela de login, atualiza a mensagem lá também
+          if (!isLoggedIn && !isRunning) {
+             setLoginStatus('loading', ev.message);
+          }
+          break;
+
+        case 'countdown': break;
+
+        case 'operation_done':
+          isRunning = false;
+          showSection('done');
+          document.getElementById('done-sub').textContent =
+            `${ev.done} de ${ev.total} usuários adicionados aos Melhores Amigos.`;
+          break;
+
+        // ── Monitor ──
+        case 'monitor_started':
+          monitorActive = true;
+          updateMonitorUI(true);
+          appendMLog(`🟢 Monitor iniciado. Snapshot: ${ev.total_inicial} seguidores existentes.`, 'success');
+          startCd();
+          break;
+
+        case 'monitor_checking':
+          appendMLog(`🔄 Ciclo #${ev.cycle} — verificando novos seguidores...`, 'info');
+          break;
+
+        case 'monitor_new_follower':
+          if (ev.added) {
+            appendMLog(`⭐ @${ev.username} seguiu e foi adicionado!`, 'success');
+            showToast(ev.username);
+            const el = document.getElementById('monitor-stat-added');
+            el.textContent = parseInt(el.textContent || '0') + 1;
+          } else {
+            appendMLog(`⚠️ @${ev.username} seguiu, mas falhou ao adicionar.`, 'warning');
+          }
+          break;
+
+        case 'monitor_cycle_done':
+          document.getElementById('monitor-stat-cycles').textContent = ev.cycle || 0;
+          document.getElementById('monitor-stat-added').textContent  = ev.total_added || 0;
+          if (ev.last_check) {
+            const d = new Date(ev.last_check);
+            document.getElementById('monitor-last-check').textContent =
+              'Último: ' + d.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+          }
+          if (ev.new_count === 0 && !ev.error)
+            appendMLog(`✓ Ciclo #${ev.cycle}: nenhum seguidor novo.`, 'info');
+          startCd();
+          break;
+
+        case 'monitor_error':
+          appendMLog(`❌ Erro: ${ev.message}`, 'error');
+          break;
+
+        case 'monitor_stopped':
+          monitorActive = false;
+          updateMonitorUI(false);
+          stopCd();
+          appendMLog('⏹️ Monitor encerrado.', 'warning');
+          break;
+
+        // ── Monitor Seguindo (mf_*) ──
+        case 'mf_started':
+          mfActive = true;
+          updateMfUI(true);
+          appendMfLog(`🟢 Monitor iniciado. Snapshot: ${ev.total_inicial} contas seguidas. Aguardando novos...`, 'success');
+          startMfCd();
+          break;
+
+        case 'mf_checking':
+          appendMfLog(`🔄 Ciclo #${ev.cycle} — verificando novas contas seguidas...`, 'info');
+          break;
+
+        case 'mf_new_following':
+          if (ev.added) {
+            appendMfLog(`💙 @${ev.username} — você seguiu e foi adicionado aos Melhores Amigos!`, 'success');
+            showMfToast(ev.username);
+            const elMf = document.getElementById('mf-stat-added');
+            elMf.textContent = parseInt(elMf.textContent || '0') + 1;
+          } else {
+            appendMfLog(`⚠️ @${ev.username} — falhou ao adicionar.`, 'warning');
+          }
+          break;
+
+        case 'mf_cycle_done':
+          document.getElementById('mf-stat-cycles').textContent = ev.cycle || 0;
+          document.getElementById('mf-stat-added').textContent  = ev.total_added || 0;
+          if (ev.last_check) {
+            const dm = new Date(ev.last_check);
+            document.getElementById('mf-last-check').textContent =
+              'Último: ' + dm.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+          }
+          if (ev.new_count === 0 && !ev.error)
+            appendMfLog(`✓ Ciclo #${ev.cycle}: nenhuma conta nova seguida.`, 'info');
+          startMfCd();
+          break;
+
+        case 'mf_error':
+          appendMfLog(`❌ Erro: ${ev.message}`, 'error');
+          break;
+
+        case 'mf_stopped':
+          mfActive = false;
+          updateMfUI(false);
+          stopMfCd();
+          appendMfLog('⏹️ Monitor de seguindo encerrado.', 'warning');
+          break;
+
+        case 'ping': default: break;
+      }
+    }
+
+    // ── SECTIONS ───────────────────────────────────────────────
+    function showSection(name) {
+      ['login','login-2fa','dashboard','preview','progress','done'].forEach(s => {
+        document.getElementById('section-' + s).style.display = s === name ? 'block' : 'none';
+      });
+      const onDash = isLoggedIn && name === 'dashboard';
+      const mon = document.getElementById('section-monitor');
+      if (mon) mon.style.display = onDash ? 'block' : 'none';
+      const mf  = document.getElementById('section-mf');
+      if (mf)  mf.style.display  = onDash ? 'block' : 'none';
+    }
+
+    // ── LOGIN STATUS ───────────────────────────────────────────
+    function setLoginStatus(type, msg) {
+      const bar = document.getElementById('login-status');
+      bar.className = 'status-bar ' + type;
+      const spin = type === 'loading'
+        ? '<div class="spinner"></div>'
+        : '<div class="status-dot"></div>';
+      bar.innerHTML = spin + `<span id="login-status-text">${msg}</span>`;
+    }
+
+    // ── PROGRESS ───────────────────────────────────────────────
+    function setProgress(done, total) {
+      const bar   = document.getElementById('progress-bar');
+      const count = document.getElementById('progress-count');
+      count.textContent = `${done} / ${total}`;
+      if (total > 0) {
+        bar.classList.remove('indeterminate');
+        bar.style.width = Math.round((done / total) * 100) + '%';
+      } else {
+        bar.classList.add('indeterminate');
+        bar.style.width = '35%';
+      }
+    }
+
+    // ── LOG ────────────────────────────────────────────────────
+    function appendLog(message, level = 'info') {
+      const list = document.getElementById('log-list');
+      const now  = new Date().toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+      const el = document.createElement('div');
+      el.className = 'log-entry';
+      el.innerHTML = `<span class="log-time">${now}</span><span class="log-msg ${level}">${message}</span>`;
+      list.appendChild(el);
+      list.scrollTop = list.scrollHeight;
+    }
+
+    // ── LOGIN BUTTONS ──────────────────────────────────────────
+    function disableLoginBtns() {
+      document.getElementById('btn-visual-login').disabled = true;
+    }
+
+    function enableLoginBtns() {
+      document.getElementById('btn-visual-login').disabled = false;
+    }
+
+    async function startVisualLogin() {
+      disableLoginBtns();
+      setLoginStatus('loading', 'Abrindo Chrome para login visual...');
+      try {
+        await fetch('/api/login/visual', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({}),
+        });
+      } catch (err) {
+        setLoginStatus('error', 'Erro de comunicação com o servidor.');
+        enableLoginBtns();
+      }
+    }
+
+
+
+    // ── OPERAÇÃO ───────────────────────────────────────────────
+    async function startOperation(mode) {
+      if (isRunning) return;
+      isRunning = true;
+      ['followers','following','both','mutuals'].forEach(m => {
+        document.getElementById('btn-' + m).classList.toggle('active', m === mode);
+      });
+      showSection('preview');
+      document.getElementById('preview-count').textContent = '—';
+      document.getElementById('preview-title').textContent = 'Buscando usuários...';
+      document.getElementById('preview-sub').textContent = 'Aguarde enquanto buscamos a lista no Instagram.';
+      document.getElementById('preview-spinner').style.display = 'block';
+      document.getElementById('preview-actions').style.display = 'none';
+      document.getElementById('log-list').innerHTML = '';
+      setProgress(0, 0);
+      try {
+        await fetch('/api/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mode }),
+        });
+      } catch (err) {
+        appendLog('Erro ao solicitar preview: ' + err, 'error');
+        isRunning = false;
+      }
+    }
+
+    async function confirmStartAddition() {
+      showSection('progress');
+      appendLog('Iniciando adição em massa...', 'info');
+      try {
+        await fetch('/api/confirm_start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            delay_min: selDelaySec, 
+            delay_max: Math.round(selDelaySec * 1.4),
+            batch_size: selBatchSize 
+          }),
+        });
+      } catch (err) {
+        appendLog('Erro ao iniciar adição: ' + err, 'error');
+        isRunning = false;
+      }
+    }
+
+    function onDelaySlider(input) {
+      selDelaySec = parseInt(input.value);
+
+      // Atualiza o display do valor
+      const disp = document.getElementById('delay-display');
+      if (disp) {
+        if (selDelaySec === 0)           disp.textContent = 'Lote ⚡';
+        else if (selDelaySec < 60)       disp.textContent = selDelaySec + 's';
+        else if (selDelaySec % 60 === 0) disp.textContent = (selDelaySec / 60) + ' min';
+        else disp.textContent = Math.floor(selDelaySec / 60) + 'min ' + (selDelaySec % 60) + 's';
+      }
+
+      // Atualiza a cor e dica de acordo com o modo/risco
+      const hint = document.getElementById('delay-hint');
+      if (hint) {
+        if (selDelaySec === 0) {
+          hint.innerHTML = '⚡ <strong style="color:var(--warning)">Modo Lote Único</strong> — todos adicionados de uma vez, sem temporizador. Risco elevado de bloqueio.';
+        } else if (selDelaySec < 20) {
+          hint.innerHTML = '⚠️ <strong style="color:var(--error)">Muito rápido</strong> — alto risco de bloqueio.';
+        } else if (selDelaySec < 40) {
+          hint.innerHTML = 'Rápido — risco moderado de bloqueio.';
+        } else if (selDelaySec <= 60) {
+          hint.innerHTML = '✅ <strong style="color:var(--success)">Recomendado</strong> — equilíbrio entre velocidade e segurança.';
+        } else {
+          hint.innerHTML = '🛡️ Muito seguro — processamento mais lento, risco mínimo de bloqueio.';
+        }
+      }
+
+      // Atualiza o gradiente de preenchimento da barra
+      const pct = (selDelaySec / 300) * 100;
+      const color = selDelaySec === 0 ? '#f59e0b'
+                  : selDelaySec < 20  ? '#ef4444'
+                  : selDelaySec < 40  ? '#f59e0b'
+                  : '#3b82f6';
+      input.style.background = selDelaySec === 0
+        ? 'var(--surface3)'
+        : `linear-gradient(90deg, ${color} ${pct}%, var(--surface3) ${pct}%)`;
+
+      updateEta();
+    }
+
+    function onBatchSlider(input) {
+      selBatchSize = parseInt(input.value);
+      
+      const disp = document.getElementById('batch-display');
+      if (disp) {
+        disp.textContent = selBatchSize;
+      }
+      
+      const pct = ((selBatchSize - 1) / 49) * 100;
+      input.style.background = `linear-gradient(90deg, #7c3aed ${pct}%, var(--surface3) ${pct}%)`;
+
+      updateEta();
+    }
+
+    function updateEta() {
+      const el = document.getElementById('preview-eta');
+      if (!el || !previewUserCount) return;
+      
+      if (selDelaySec === 0) {
+        el.textContent = `⚡ Adição instantânea — ${previewUserCount} usuário(s) em um único request`;
+        return;
+      }
+      
+      // Calculate how many cycles (batches) we need
+      const cycles = Math.ceil(previewUserCount / selBatchSize);
+      // Wait happens *between* batches, so if cycles = 1 we don't wait (or we just count it as zero time).
+      // Here we will calculate a rough estimate of total delay.
+      const totalSec = Math.max(0, cycles - 1) * selDelaySec;
+      
+      let etaStr;
+      if (totalSec < 60)        etaStr = totalSec + 's';
+      else if (totalSec < 3600) etaStr = Math.round(totalSec / 60) + ' min';
+      else                      etaStr = (totalSec / 3600).toFixed(1).replace('.0','') + 'h';
+      
+      el.textContent = `⏳ Tempo estimado: ~${etaStr} para ${previewUserCount} usuários (em lotes de ${selBatchSize})`;
+    }
+
+    function resetToMenu() {
+      isRunning = false;
+      fetch('/api/reset', { method: 'POST' });
+      showSection('dashboard');
+      document.getElementById('log-list').innerHTML = '';
+      setProgress(0, 0);
+      ['followers','following','both','mutuals'].forEach(m =>
+        document.getElementById('btn-' + m).classList.remove('active')
+      );
+    }
+
+    // ── MONITOR ────────────────────────────────────────────────
+    function selectChip(el) {
+      document.querySelectorAll('.chip').forEach(c => c.classList.remove('sel'));
+      el.classList.add('sel');
+      selIntervalMin = parseInt(el.dataset.min);
+    }
+
+    async function onMonitorToggle(cb) {
+      if (cb.checked) await startMonitor();
+      else await stopMonitor();
+    }
+
+    async function startMonitor() {
+      document.getElementById('monitor-toggle').disabled = true;
+      appendMLog('⏳ Iniciando monitor...', 'info');
+      try {
+        const res  = await fetch('/api/monitor/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ interval_min: selIntervalMin }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          appendMLog('❌ Erro ao iniciar: ' + (data.error || 'desconhecido'), 'error');
+          document.getElementById('monitor-toggle').checked = false;
+        }
+      } catch (err) {
+        appendMLog('❌ Erro de comunicação: ' + err, 'error');
+        document.getElementById('monitor-toggle').checked = false;
+      } finally {
+        document.getElementById('monitor-toggle').disabled = false;
+      }
+    }
+
+    async function stopMonitor() {
+      try {
+        await fetch('/api/monitor/stop', { method: 'POST' });
+        appendMLog('⏸️ Parando monitor...', 'warning');
+      } catch (err) {
+        appendMLog('❌ Erro ao parar: ' + err, 'error');
+      }
+    }
+
+    function updateMonitorUI(active) {
+      const card     = document.getElementById('section-monitor');
+      const badge    = document.getElementById('monitor-live-badge');
+      const irow     = document.getElementById('monitor-interval-row');
+      const cdrow    = document.getElementById('monitor-countdown-row');
+      if (active) {
+        card.classList.add('active');
+        badge.classList.add('visible');
+        irow.style.opacity = '.35';
+        irow.style.pointerEvents = 'none';
+        cdrow.style.display = 'flex';
+      } else {
+        card.classList.remove('active');
+        badge.classList.remove('visible');
+        irow.style.opacity = '1';
+        irow.style.pointerEvents = 'auto';
+        cdrow.style.display = 'none';
+        document.getElementById('monitor-stat-next').textContent = '—';
+      }
+    }
+
+    function appendMLog(message, level = 'info') {
+      const logEl = document.getElementById('monitor-log');
+      const now   = new Date().toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+      const el    = document.createElement('div');
+      el.className = 'log-entry';
+      const clr = { success:'var(--success)', warning:'var(--warning)', error:'var(--error)', info:'#8ba3c7' };
+      el.innerHTML = `<span class="log-time">${now}</span><span class="log-msg" style="color:${clr[level]||clr.info}">${message}</span>`;
+      logEl.appendChild(el);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function startCd() {
+      stopCd();
+      cdTotal = selIntervalMin * 60;
+      cdSec   = cdTotal;
+      _updateCd();
+      cdInterval = setInterval(() => { cdSec = Math.max(0, cdSec - 1); _updateCd(); }, 1000);
+    }
+
+    function stopCd() {
+      if (cdInterval) { clearInterval(cdInterval); cdInterval = null; }
+    }
+
+    function _updateCd() {
+      const fill = document.getElementById('monitor-countdown-fill');
+      const num  = document.getElementById('monitor-countdown-num');
+      const next = document.getElementById('monitor-stat-next');
+      const pct  = cdTotal > 0 ? (cdSec / cdTotal) * 100 : 0;
+      if (fill) fill.style.width = pct + '%';
+      const m = Math.floor(cdSec / 60);
+      const s = cdSec % 60;
+      const lbl = `${m}:${String(s).padStart(2,'0')}`;
+      if (num)  num.textContent  = lbl;
+      if (next) next.textContent = lbl;
+    }
+
+    let _toastT = null;
+    function showToast(username) {
+      const ex = document.getElementById('follower-toast');
+      if (ex) ex.remove();
+      const t = document.createElement('div');
+      t.id        = 'follower-toast';
+      t.className = 'follower-toast';
+      t.innerHTML = `
+        <div class="toast-av">👋</div>
+        <div>
+          <div class="toast-title">⭐ Novo Melhor Amigo!</div>
+          <div class="toast-sub">@${username} adicionado automaticamente.</div>
+        </div>
+      `;
+      document.body.appendChild(t);
+      if (_toastT) clearTimeout(_toastT);
+      _toastT = setTimeout(() => {
+        t.classList.add('hiding');
+        setTimeout(() => t.remove(), 400);
+      }, 4500);
+    }
+
+    // ── MONITOR DE NOVOS SEGUINDO (mf) ────────────────────────
+    let mfActive       = false;
+    let mfIntervalMin  = 5;
+    let mfCdInterval   = null;
+    let mfCdSec        = 0;
+    let mfCdTotal      = 0;
+
+    function selectMfChip(el) {
+      document.querySelectorAll('#mf-interval-row .chip').forEach(c => {
+        c.classList.remove('sel');
+        c.style.borderColor = '';
+        c.style.background  = '';
+        c.style.color       = '';
+      });
+      el.classList.add('sel');
+      el.style.borderColor = 'rgba(167,139,250,.4)';
+      el.style.background  = 'rgba(124,58,237,.1)';
+      el.style.color       = '#a78bfa';
+      mfIntervalMin = parseInt(el.dataset.min);
+    }
+
+    async function onMfToggle(cb) {
+      if (cb.checked) await startMf();
+      else await stopMf();
+    }
+
+    async function startMf() {
+      document.getElementById('mf-toggle').disabled = true;
+      appendMfLog('⏳ Iniciando monitor de seguindo...', 'info');
+      try {
+        const res  = await fetch('/api/monitor/following/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ interval_min: mfIntervalMin }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          appendMfLog('❌ Erro ao iniciar: ' + (data.error || 'desconhecido'), 'error');
+          document.getElementById('mf-toggle').checked = false;
+        }
+      } catch (err) {
+        appendMfLog('❌ Erro de comunicação: ' + err, 'error');
+        document.getElementById('mf-toggle').checked = false;
+      } finally {
+        document.getElementById('mf-toggle').disabled = false;
+      }
+    }
+
+    async function stopMf() {
+      try {
+        await fetch('/api/monitor/following/stop', { method: 'POST' });
+        appendMfLog('⏸️ Parando monitor de seguindo...', 'warning');
+      } catch (err) {
+        appendMfLog('❌ Erro ao parar: ' + err, 'error');
+      }
+    }
+
+    function updateMfUI(active) {
+      const card  = document.getElementById('section-mf');
+      const badge = document.getElementById('mf-live-badge');
+      const irow  = document.getElementById('mf-interval-row');
+      const cdrow = document.getElementById('mf-countdown-row');
+      if (active) {
+        card.classList.add('active');
+        badge.classList.add('visible');
+        irow.style.opacity = '.35';
+        irow.style.pointerEvents = 'none';
+        cdrow.style.display = 'flex';
+      } else {
+        card.classList.remove('active');
+        badge.classList.remove('visible');
+        irow.style.opacity = '1';
+        irow.style.pointerEvents = 'auto';
+        cdrow.style.display = 'none';
+        document.getElementById('mf-stat-next').textContent = '—';
+      }
+    }
+
+    function appendMfLog(message, level = 'info') {
+      const logEl = document.getElementById('mf-log');
+      const now   = new Date().toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+      const el    = document.createElement('div');
+      el.className = 'log-entry';
+      const clr = { success:'var(--success)', warning:'var(--warning)', error:'var(--error)', info:'#8ba3c7' };
+      el.innerHTML = `<span class="log-time">${now}</span><span class="log-msg" style="color:${clr[level]||clr.info}">${message}</span>`;
+      logEl.appendChild(el);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function startMfCd() {
+      stopMfCd();
+      mfCdTotal = mfIntervalMin * 60;
+      mfCdSec   = mfCdTotal;
+      _updateMfCd();
+      mfCdInterval = setInterval(() => { mfCdSec = Math.max(0, mfCdSec - 1); _updateMfCd(); }, 1000);
+    }
+
+    function stopMfCd() {
+      if (mfCdInterval) { clearInterval(mfCdInterval); mfCdInterval = null; }
+    }
+
+    function _updateMfCd() {
+      const fill = document.getElementById('mf-countdown-fill');
+      const num  = document.getElementById('mf-countdown-num');
+      const next = document.getElementById('mf-stat-next');
+      const pct  = mfCdTotal > 0 ? (mfCdSec / mfCdTotal) * 100 : 0;
+      if (fill) fill.style.width = pct + '%';
+      const m = Math.floor(mfCdSec / 60);
+      const s = mfCdSec % 60;
+      const lbl = `${m}:${String(s).padStart(2,'0')}`;
+      if (num)  num.textContent  = lbl;
+      if (next) next.textContent = lbl;
+    }
+
+    let _mfToastT = null;
+    function showMfToast(username) {
+      const ex = document.getElementById('mf-toast');
+      if (ex) ex.remove();
+      const t = document.createElement('div');
+      t.id        = 'mf-toast';
+      t.className = 'follower-toast';
+      t.style.borderColor = 'rgba(124,58,237,.35)';
+      t.innerHTML = `
+        <div class="toast-av" style="background:linear-gradient(135deg,#7c3aed,#a78bfa)">💙</div>
+        <div>
+          <div class="toast-title" style="color:#a78bfa">💙 Novo Melhor Amigo!</div>
+          <div class="toast-sub">@${username} — você seguiu e foi adicionado.</div>
+        </div>
+      `;
+      document.body.appendChild(t);
+      if (_mfToastT) clearTimeout(_mfToastT);
+      _mfToastT = setTimeout(() => {
+        t.classList.add('hiding');
+        setTimeout(() => t.remove(), 400);
+      }, 4500);
+    }
+
+    // ── INIT ───────────────────────────────────────────────────
+    connectSSE();
+
+    fetch('/api/state')
+      .then(r => r.json())
+      .then(s => {
+        if (s.logged_in) {
+          isLoggedIn = true;
+          document.getElementById('account-name').textContent = '@' + s.username;
+          showSection('dashboard');
+        }
+      });
+
+    fetch('/api/monitor/status')
+      .then(r => r.json())
+      .then(s => {
+        if (s.running) {
+          monitorActive = true;
+          document.getElementById('monitor-toggle').checked = true;
+          updateMonitorUI(true);
+          document.getElementById('monitor-stat-added').textContent  = s.added_count  || 0;
+          document.getElementById('monitor-stat-cycles').textContent = s.cycle_count  || 0;
+          if (s.last_check) {
+            const d = new Date(s.last_check);
+            document.getElementById('monitor-last-check').textContent =
+              'Último: ' + d.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+          }
+          const minVal = Math.round(s.interval_sec / 60);
+          const chip   = document.querySelector(`.chip[data-min="${minVal}"]`);
+          if (chip) selectChip(chip);
+          startCd();
+        }
+      })
+      .catch(() => {});
+
+    fetch('/api/monitor/following/status')
+      .then(r => r.json())
+      .then(s => {
+        if (s.running) {
+          mfActive = true;
+          document.getElementById('mf-toggle').checked = true;
+          updateMfUI(true);
+          document.getElementById('mf-stat-added').textContent  = s.added_count  || 0;
+          document.getElementById('mf-stat-cycles').textContent = s.cycle_count  || 0;
+          if (s.last_check) {
+            const dm = new Date(s.last_check);
+            document.getElementById('mf-last-check').textContent =
+              'Último: ' + dm.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+          }
+          const minValMf = Math.round(s.interval_sec / 60);
+          const chipMf   = document.querySelector(`#mf-interval-row .chip[data-min="${minValMf}"]`);
+          if (chipMf) selectMfChip(chipMf);
+          startMfCd();
+        }
+      })
+      .catch(() => {});
+  </script>
+</body>
+</html>
