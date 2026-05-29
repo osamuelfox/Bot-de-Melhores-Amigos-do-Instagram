@@ -351,20 +351,64 @@ def start_operation():
 
             push_event("log", message=f"{len(unique)} usuarios unicos a processar.", level="info")
 
-            # ── Filtra quem já está nos Melhores Amigos ────────────────────────
-            sess_type = state.get("session_type")
-            if sess_type == "web":
+            # ── Filtra quem já está nos Melhores Amigos (via API Direta Minimalista) ──
+            try:
+                import urllib.request
+                import json
+                
+                push_event("log", message="Pesquisando quem ja esta nos Melhores Amigos no Instagram...", level="info")
+                
+                cookies_dict = {}
                 try:
-                    import playwright_adder
-                    push_event("log", message="Verificando quem já está nos Melhores Amigos...", level="info")
-                    ja_adicionados = playwright_adder.obter_melhores_amigos_ids(log_cb=log)
+                    import os
+                    if os.path.exists("session.json"):
+                        with open("session.json", "r", encoding="utf-8") as f:
+                            s_data = json.load(f)
+                            cookies_dict = s_data.get("cookies", {})
+                except Exception:
+                    pass
+                    
+                sessionid = cookies_dict.get("sessionid", "")
+                csrftoken = cookies_dict.get("csrftoken", "")
+                
+                if sessionid:
+                    headers = {
+                        "User-Agent": "Instagram 219.0.0.12.117 Android",
+                        "Cookie": f"sessionid={sessionid}; csrftoken={csrftoken};",
+                        "Accept": "*/*",
+                        "X-IG-App-ID": "936619743392459",
+                    }
+                    
+                    max_id = None
+                    ja_adicionados = set()
+                    
+                    for page_num in range(50): # Limite de seguranca
+                        url = "https://i.instagram.com/api/v1/friendships/besties/?source=audience_manager"
+                        if max_id:
+                            url += f"&max_id={max_id}"
+                            
+                        req = urllib.request.Request(url, headers=headers)
+                        try:
+                            resp = urllib.request.urlopen(req, timeout=10)
+                            data = json.loads(resp.read().decode("utf-8"))
+                            users = data.get("users", [])
+                            for u in users:
+                                ja_adicionados.add(str(u["pk"]))
+                            max_id = data.get("next_max_id")
+                            if not max_id:
+                                break
+                        except Exception as e_req:
+                            push_event("log", message=f"Aviso na pagina {page_num+1} da lista de Melhores Amigos: {e_req}", level="warning")
+                            break
+                    
                     if ja_adicionados:
+                        push_event("log", message=f"[DEBUG] IDs encontrados nos Melhores Amigos online: {list(ja_adicionados)[:5]}...", level="info")
                         antes = len(unique)
                         unique = [u for u in unique if str(u["user_id"]) not in ja_adicionados]
                         pulados = antes - len(unique)
                         if pulados > 0:
                             push_event("log",
-                                message=f"{pulados} usuario(s) ja estao nos Melhores Amigos e serao pulados.",
+                                message=f"{pulados} usuario(s) ja estao nos Melhores Amigos (pesquisa online) e serao pulados.",
                                 level="success"
                             )
                         push_event("log",
@@ -372,15 +416,16 @@ def start_operation():
                             level="info"
                         )
                     else:
-                        push_event("log",
-                            message="Nao foi possivel verificar Melhores Amigos existentes. Continuando sem filtro.",
-                            level="warning"
-                        )
-                except Exception as e_cf:
-                    push_event("log",
-                        message=f"Aviso: Nao foi possivel verificar Melhores Amigos existentes ({str(e_cf)[:100]}). Continuando sem filtro.",
-                        level="warning"
-                    )
+                        push_event("log", message="Ninguem encontrado na sua lista de Melhores Amigos atual.", level="info")
+                else:
+                    push_event("log", message="Sessao nao encontrada. Nao foi possivel filtrar Melhores Amigos.", level="warning")
+                    
+            except Exception as e_cf:
+                push_event("log",
+                    message=f"Aviso: Falha ao consultar lista online ({str(e_cf)[:100]}).",
+                    level="warning"
+                )
+
 
             if len(unique) == 0:
                 push_event("log", message="Nenhum usuario novo para adicionar. Todos ja sao Melhores Amigos ou a lista esta vazia.", level="warning")

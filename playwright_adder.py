@@ -18,6 +18,7 @@ import json
 import time
 import random
 import traceback
+import os
 from playwright.sync_api import sync_playwright
 
 # Delays em segundos (configuracao central)
@@ -27,6 +28,23 @@ DELAY_RATE_LIMIT_MIN     = 900  # 15 min apos erro 429
 DELAY_RATE_LIMIT_MAX     = 1800 # 30 min apos erro 429
 DELAY_ERRO_MIN           = 60   # Apos erro desconhecido
 DELAY_ERRO_MAX           = 120
+
+
+def _registrar_adicionados_local(novos_ids: list):
+    """Salva os IDs recem adicionados no arquivo json local para não re-adicioná-los depois."""
+    arquivo = "adicionados.json"
+    try:
+        adicionados = set()
+        if os.path.exists(arquivo):
+            with open(arquivo, "r", encoding="utf-8") as f:
+                adicionados = set(json.load(f))
+        
+        adicionados.update(str(uid) for uid in novos_ids)
+        
+        with open(arquivo, "w", encoding="utf-8") as f:
+            json.dump(list(adicionados), f)
+    except Exception as e:
+        print(f"Erro ao salvar adicionados no historico: {e}", flush=True)
 
 
 def _abrir_browser_com_sessao():
@@ -65,6 +83,81 @@ def _abrir_browser_com_sessao():
     context.add_cookies(playwright_cookies)
     page = context.new_page()
     return p, browser, context, page
+
+
+def obter_melhores_amigos_via_cliente(cl, log_cb=None) -> set:
+    """
+    Busca a lista de Melhores Amigos usando o cliente instagrapi (API móvel).
+
+    Vantagem sobre a abordagem Playwright: o cliente instagrapi já possui os
+    headers corretos (User-Agent mobile, autenticação completa). O Instagram
+    rejeita requisições da API móvel feitas com User-Agent de browser.
+
+    Args:
+        cl: Cliente instagrapi autenticado.
+        log_cb: Callback log(msg, level).
+
+    Retorna:
+        set de strings com os user_ids já presentes nos Melhores Amigos.
+        Em caso de falha retorna set vazio.
+    """
+    def _log(msg, level="info"):
+        if log_cb:
+            log_cb(msg, level)
+        else:
+            print(f"[{level.upper()}] {msg}", flush=True)
+
+    try:
+        _log("Verificando Melhores Amigos via API movel...", "info")
+        all_ids = set()
+        max_id = None
+        page_count = 0
+
+        while page_count < 50:
+            params = {"source": "audience_manager"}
+            if max_id:
+                params["max_id"] = max_id
+
+            # cl.private é a Session autenticada com User-Agent mobile correto
+            response = cl.private.get(
+                "https://i.instagram.com/api/v1/friendships/besties/",
+                params=params,
+            )
+
+            if not response.ok:
+                body_preview = response.text[:120] if response.text else ""
+                _log(
+                    f"API movel retornou HTTP {response.status_code}: {body_preview}",
+                    "warning",
+                )
+                break
+
+            data = response.json()
+            users = data.get("users") or data.get("besties") or []
+            for u in users:
+                uid = str(u.get("pk") or u.get("id") or "")
+                if uid:
+                    all_ids.add(uid)
+
+            max_id = data.get("next_max_id")
+            page_count += 1
+
+            if not max_id:
+                break
+
+        if all_ids:
+            _log(
+                f"{len(all_ids)} pessoa(s) ja estao nos Melhores Amigos — serao puladas.",
+                "success",
+            )
+        else:
+            _log("Lista de Melhores Amigos vazia ou nao obtida.", "info")
+
+        return all_ids
+
+    except Exception as e:
+        _log(f"Erro ao buscar Melhores Amigos via API: {e}", "warning")
+        return set()
 
 
 def obter_melhores_amigos_ids(log_cb=None) -> set:
@@ -131,7 +224,7 @@ def obter_melhores_amigos_ids(log_cb=None) -> set:
             context.add_cookies(playwright_cookies)
             page = context.new_page()
 
-            # Navega ao Instagram para carregar cookies no contexto
+            # Navega ao Instagram para carregar os cookies e o contexto da sessao
             try:
                 page.goto("https://www.instagram.com/", wait_until="domcontentloaded", timeout=20000)
                 page.wait_for_timeout(2000)
@@ -141,19 +234,35 @@ def obter_melhores_amigos_ids(log_cb=None) -> set:
                 return set()
 
             if "/accounts/login" in page.url or "/challenge" in page.url:
-                _log("Sessao expirada ao buscar Melhores Amigos.", "error")
+                _log("Sessao expirada ou desafio de seguranca ao buscar Melhores Amigos.", "error")
                 browser.close()
                 return set()
 
-            # Busca paginada — tenta múltiplos endpoints que o Instagram usa
+            # Busca paginada via fetch — com headers COMPLETOS (X-CSRFToken e X-Instagram-AJAX sao obrigatorios)
+            # Sem esses headers o Instagram retorna HTTP 400
             result = page.evaluate("""
                 async () => {
                     const allIds = [];
+                    const errors = [];
 
-                    // O Instagram Web usa close_friends/ com paginação ou besties/ com params
+                    // Captura o csrftoken dos cookies — NECESSARIO para chamadas de API
+                    const csrftoken = document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '';
+
+                    // Headers completos — igual ao que o Instagram usa internamente
+                    const baseHeaders = {
+                        'X-IG-App-ID': '936619743392459',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-Instagram-AJAX': '1',
+                        'X-CSRFToken': csrftoken,
+                        'Accept': 'application/json',
+                        'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+                    };
+
+                    // Endpoints em ordem de preferencia
                     const ENDPOINTS = [
-                        '/api/v1/friendships/close_friends/',
                         '/api/v1/friendships/besties/?source=audience_manager',
+                        '/api/v1/friendships/close_friends/',
+                        '/api/v1/friendships/besties/',
                     ];
 
                     for (const baseUrl of ENDPOINTS) {
@@ -169,16 +278,13 @@ def obter_melhores_amigos_ids(log_cb=None) -> set:
 
                                 const resp = await fetch(url, {
                                     method: 'GET',
-                                    headers: {
-                                        'X-IG-App-ID': '936619743392459',
-                                        'X-Requested-With': 'XMLHttpRequest',
-                                        'Accept': 'application/json',
-                                    },
+                                    headers: baseHeaders,
                                     credentials: 'include',
                                 });
 
                                 if (!resp.ok) {
-                                    // Esse endpoint nao funcionou, tenta o proximo
+                                    const body = await resp.text().catch(() => '');
+                                    errors.push(baseUrl + ' => HTTP ' + resp.status + ': ' + body.substring(0, 150));
                                     break;
                                 }
 
@@ -195,24 +301,36 @@ def obter_melhores_amigos_ids(log_cb=None) -> set:
 
                             } while (nextMaxId && pageCount < 50);
 
-                            if (worked) break; // Parou apos o primeiro endpoint que funcionou
+                            if (worked) break; // Parou no primeiro endpoint que funcionou
                         } catch (err) {
-                            // Tenta o proximo endpoint
+                            errors.push(baseUrl + ' => excecao: ' + err.message);
                         }
                     }
 
-                    return { ok: true, ids: allIds };
+                    return { ok: true, ids: allIds, errors: errors };
                 }
             """)
 
             browser.close()
 
-            if result and result.get("ok"):
+            if result:
                 ids = set(result.get("ids", []))
-                _log(f"Lista de Melhores Amigos obtida: {len(ids)} usuario(s) ja adicionado(s).", "success")
+                errors = result.get("errors", [])
+
+                if errors:
+                    for err_msg in errors:
+                        _log(f"[Besties] Detalhe: {err_msg}", "warning")
+
+                if ids:
+                    _log(f"Melhores Amigos obtidos: {len(ids)} pessoa(s) ja adicionada(s). Serao puladas.", "success")
+                else:
+                    if errors:
+                        _log("Nao foi possivel obter lista de Melhores Amigos (todos endpoints falharam). Continuando sem filtro.", "warning")
+                    else:
+                        _log("Lista de Melhores Amigos esta vazia — ninguem cadastrado ainda.", "info")
                 return ids
             else:
-                _log("Falha ao buscar lista de Melhores Amigos nos endpoints disponiveis.", "warning")
+                _log("Falha ao buscar lista de Melhores Amigos (resposta invalida).", "warning")
                 return set()
 
     except Exception as e:
@@ -319,6 +437,7 @@ def adicionar_usuario_via_playwright(user_id: str, username: str, push_event_cb,
             browser.close()
 
             if result and result.get("ok"):
+                _registrar_adicionados_local([user_id])
                 return True
             else:
                 body = result.get("body", "") if result else "sem resposta"
@@ -533,6 +652,7 @@ def _try_api_approach(page, usuarios, push_event, set_progress, check_running,
                 set_progress(done)
                 push_event("progress", done=done, total=total)
                 push_event("log", message=f"[Lote {num_lote}/{len(chunks)}] Sucesso! ✓", level="success")
+                _registrar_adicionados_local(chunk_ids)
 
             elif result:
                 status = result.get("status", "?")
@@ -680,6 +800,7 @@ def _try_api_batch(page, usuarios, push_event, set_progress, check_running):
                 message=f"Lote unico OK! {total} usuario(s) adicionados — {usernames_str}{'...' if total > 5 else ''}",
                 level="success"
             )
+            _registrar_adicionados_local(add_ids)
             return True
         else:
             status = result.get("status", "?") if result else "?"
@@ -822,6 +943,8 @@ def _try_ui_approach(page, usuarios, push_event, set_progress, check_running):
                 set_progress(done)
                 push_event("progress", done=done, total=total)
                 push_event("log", message=f"@{username} adicionado! ({done}/{total})", level="success")
+                if "user_id" in u:
+                    _registrar_adicionados_local([u["user_id"]])
             else:
                 push_event("log", message=f"@{username} nao encontrado ou nao pode ser adicionado.", level="warning")
 
