@@ -38,6 +38,7 @@ state = {
     "progress_total": 0,
     "pending_users": [],
     "session_type": None, # "web" ou "mobile"
+    "login_token": None,  # Token único por tentativa de login; revogado no logout
     # ── Monitor de novos seguidores ──
     "monitor_running": False,
     "monitor_interval": 300,
@@ -95,20 +96,42 @@ def api_state():
 
 @app.route("/api/login/visual", methods=["POST"])
 def login_visual():
+    import uuid
     data = request.get_json() or {}
     username = data.get("username", "").strip()
     password = data.get("password", "").strip()
 
+    # Gera um token único para esta tentativa de login
+    # Se o usuário fizer logout antes de concluir, o token muda e a thread ignora o resultado
+    my_token = str(uuid.uuid4())
+    with lock:
+        state["login_token"] = my_token
+
+    def _login_log(msg, level="info"):
+        """Envia log apenas se este token de login ainda for válido."""
+        with lock:
+            current_token = state.get("login_token")
+        if current_token != my_token:
+            return  # Token revogado: login cancelado, silencia esta thread
+        push_event("login_progress", message=msg, level=level)
+        print(f"[LOGIN-{level.upper()}] {msg}", flush=True)
+
     def _do_login():
         try:
-            log("Iniciando login visual...")
+            _login_log("Iniciando login visual...")
 
             from browser_login import open_visual_login
 
             def on_status(msg):
-                log(msg)
+                _login_log(msg)
 
             result = open_visual_login(username, password, callback=on_status)
+
+            # Verifica token antes de processar resultado
+            with lock:
+                if state.get("login_token") != my_token:
+                    print("[LOGIN] Token revogado, ignorando resultado.", flush=True)
+                    return
 
             if result and len(result) == 3:
                 sessionid, user, cookies_raw = result
@@ -116,12 +139,12 @@ def login_visual():
                 sessionid, user, cookies_raw = None, None, None
 
             if not sessionid:
-                log("Login nao detectado. Certifique-se de completar o login no Chrome.", "error")
+                _login_log("Login nao detectado. Certifique-se de completar o login no Chrome.", "error")
                 push_event("login_error", message="Login nao detectado. Tente novamente.")
                 return
 
-            log(f"Sessionid extraido! Tamanho: {len(sessionid)} chars")
-            log(f"Cookies extraidos: {len(cookies_raw) if cookies_raw else 0}")
+            _login_log(f"Sessionid extraido! Tamanho: {len(sessionid)} chars")
+            _login_log(f"Cookies extraidos: {len(cookies_raw) if cookies_raw else 0}")
 
             # Monta dict de cookies
             cookie_dict = {}
@@ -142,21 +165,27 @@ def login_visual():
             # Garante sessionid no dict
             cookie_dict["sessionid"] = sessionid
 
-            log(f"user_id (ds_user_id): {user_id_str}")
-            log(f"csrftoken presente: {'sim' if csrf_token else 'nao'}")
+            _login_log(f"user_id (ds_user_id): {user_id_str}")
+            _login_log(f"csrftoken presente: {'sim' if csrf_token else 'nao'}")
 
             if not user_id_str:
-                log("Cookie ds_user_id nao encontrado. Tentando extrair do sessionid...", "warning")
+                _login_log("Cookie ds_user_id nao encontrado. Tentando extrair do sessionid...", "warning")
                 import re
                 match = re.match(r"^(\d+)", sessionid)
                 if match:
                     user_id_str = match.group(1)
-                    log(f"user_id extraido do sessionid: {user_id_str}")
+                    _login_log(f"user_id extraido do sessionid: {user_id_str}")
 
             if not user_id_str:
-                log("Nao foi possivel determinar o user_id.", "error")
+                _login_log("Nao foi possivel determinar o user_id.", "error")
                 push_event("login_error", message="Nao foi possivel identificar o usuario. Tente fazer login novamente.")
                 return
+
+            # Verifica token novamente antes de criar o cliente (operação longa)
+            with lock:
+                if state.get("login_token") != my_token:
+                    print("[LOGIN] Token revogado antes de criar cliente.", flush=True)
+                    return
 
             # Cria o cliente instagrapi e injeta os cookies
             from instagrapi import Client
@@ -164,7 +193,7 @@ def login_visual():
             cl.delay_range = [2, 5]
             cl.request_timeout = 15  # Evita hang infinito
 
-            log(f"Injetando {len(cookie_dict)} cookies no cliente via set_settings...")
+            _login_log(f"Injetando {len(cookie_dict)} cookies no cliente via set_settings...")
 
             # Garante o ds_user_id no dict de cookies antes de injetar
             cookie_dict["ds_user_id"] = str(user_id_str)
@@ -173,36 +202,40 @@ def login_visual():
             cl.set_settings({"cookies": cookie_dict, "authorization_data": {"ds_user_id": str(user_id_str), "sessionid": sessionid}})
 
             cl.username = user or username or ""
-            # Nao atribuimos cl.user_id ou cl.cookie_dict diretamente pois sao properties (read-only)
 
-            log(f"Cliente instagrapi configurado! Validando via GraphQL...")
+            _login_log(f"Cliente instagrapi configurado! Validando via GraphQL...")
 
             # Tenta validar via GraphQL (mais permissivo que API mobile)
             try:
-                log("Validando sessao via GraphQL...")
+                _login_log("Validando sessao via GraphQL...")
                 gql_user = cl.user_short_gql(cl.user_id)
                 cl.username = gql_user.username
-                log(f"Sessao validada! Conta: @{cl.username}", "success")
+                _login_log(f"Sessao validada! Conta: @{cl.username}", "success")
             except Exception as e_gql:
-                log(f"GraphQL retornou: {e_gql}. Tentando account_info...", "warning")
+                _login_log(f"GraphQL retornou: {e_gql}. Tentando account_info...", "warning")
                 try:
                     info = cl.account_info()
                     cl.user_id = info.pk
                     cl.username = info.username
-                    log(f"account_info OK! Conta: @{cl.username}", "success")
+                    _login_log(f"account_info OK! Conta: @{cl.username}", "success")
                 except Exception as e_acc:
-                    log(f"account_info retornou: {e_acc}. Continuando sem validacao...", "warning")
-                    # Ainda assim define o cliente como logado se temos user_id e sessionid
+                    _login_log(f"account_info retornou: {e_acc}. Continuando sem validacao...", "warning")
                     if cl.username == "":
                         cl.username = user or username or f"usuario_{user_id_str}"
-                    log(f"Usando conta: @{cl.username} (sem validacao de API)", "warning")
+                    _login_log(f"Usando conta: @{cl.username} (sem validacao de API)", "warning")
+
+            # Verifica token antes de marcar como logado
+            with lock:
+                if state.get("login_token") != my_token:
+                    print("[LOGIN] Token revogado antes de marcar logado.", flush=True)
+                    return
 
             # Salva a sessao
             try:
                 cl.dump_settings("session.json")
-                log("Sessao salva em session.json")
+                _login_log("Sessao salva em session.json")
             except Exception as e_dump:
-                log(f"Nao foi possivel salvar session.json: {e_dump}", "warning")
+                _login_log(f"Nao foi possivel salvar session.json: {e_dump}", "warning")
 
             state["client"] = cl
             state["username"] = cl.username
@@ -210,13 +243,16 @@ def login_visual():
             state["logged_in"] = True
             state["session_type"] = "web"
             push_event("login_success", username=cl.username)
-            log(f"Login concluido como @{cl.username}!", "success")
+            _login_log(f"Login concluido como @{cl.username}!", "success")
 
         except Exception as e:
             tb = traceback.format_exc()
-            log(f"ERRO CRITICO no login: {e}", "error")
-            log(f"Traceback: {tb}", "error")
-            push_event("login_error", message=f"Erro interno: {str(e)[:120]}")
+            _login_log(f"ERRO CRITICO no login: {e}", "error")
+            print(f"[LOGIN-TRACEBACK] {tb}", flush=True)
+            # Verifica se o token ainda é válido antes de emitir erro
+            with lock:
+                if state.get("login_token") == my_token:
+                    push_event("login_error", message=f"Erro interno: {str(e)[:120]}")
 
     threading.Thread(target=_do_login, daemon=True).start()
     return jsonify({"status": "started"})
@@ -230,6 +266,9 @@ def api_logout():
         state["user_id"] = None
         state["logged_in"] = False
         state["session_type"] = None
+        state["is_running"] = False
+        state["running"] = False
+        state["login_token"] = None  # Revoga o token: silencia qualquer thread de login ativa
         
     try:
         import os
@@ -269,14 +308,30 @@ def start_operation():
             seguindo = []
 
             if mode in ("followers", "both", "mutuals"):
-                log("Buscando lista de seguidores...")
-                seguidores = obter_seguidores(cl, user_id, verbose=False)
-                log(f"{len(seguidores)} seguidores encontrados.", "success")
+                try:
+                    log("Buscando lista de seguidores...")
+                    seguidores = obter_seguidores(cl, user_id, verbose=False)
+                    log(f"{len(seguidores)} seguidores encontrados.", "success")
+                except Exception as e_seg:
+                    log(f"Erro ao buscar seguidores: {e_seg}", "error")
+                    push_event("preview_error", message=f"Falha ao buscar seguidores: {str(e_seg)[:200]}")
+                    with lock:
+                        state["is_running"] = False
+                        state["running"] = False
+                    return
 
             if mode in ("following", "both", "mutuals"):
-                push_event("log", message="Buscando lista de quem voce segue...")
-                seguindo = obter_seguindo(cl, int(user_id), verbose=False)
-                push_event("log", message=f"{len(seguindo)} contas encontradas.", level="success")
+                try:
+                    push_event("log", message="Buscando lista de quem voce segue...")
+                    seguindo = obter_seguindo(cl, int(user_id), verbose=False)
+                    push_event("log", message=f"{len(seguindo)} contas encontradas.", level="success")
+                except Exception as e_fol:
+                    log(f"Erro ao buscar seguindo: {e_fol}", "error")
+                    push_event("preview_error", message=f"Falha ao buscar contas seguidas: {str(e_fol)[:200]}")
+                    with lock:
+                        state["is_running"] = False
+                        state["running"] = False
+                    return
 
             vistos = set()
             unique = []
@@ -296,7 +351,7 @@ def start_operation():
 
             push_event("log", message=f"{len(unique)} usuarios unicos a processar.", level="info")
 
-            # ── Filtra quem já está nos Melhores Amigos ───────────────────────
+            # ── Filtra quem já está nos Melhores Amigos ────────────────────────
             sess_type = state.get("session_type")
             if sess_type == "web":
                 try:
@@ -323,9 +378,18 @@ def start_operation():
                         )
                 except Exception as e_cf:
                     push_event("log",
-                        message=f"Erro ao verificar Melhores Amigos existentes: {e_cf}. Continuando sem filtro.",
+                        message=f"Aviso: Nao foi possivel verificar Melhores Amigos existentes ({str(e_cf)[:100]}). Continuando sem filtro.",
                         level="warning"
                     )
+
+            if len(unique) == 0:
+                push_event("log", message="Nenhum usuario novo para adicionar. Todos ja sao Melhores Amigos ou a lista esta vazia.", level="warning")
+                push_event("preview_ready", count=0)
+                with lock:
+                    state["pending_users"] = []
+                    state["progress_total"] = 0
+                    state["is_running"] = False
+                return
 
             with lock:
                 state["pending_users"] = unique
@@ -338,7 +402,9 @@ def start_operation():
             with lock:
                 state["is_running"] = False
         except Exception as e:
-            push_event("log", message=f"Erro na preview: {e}", level="error")
+            tb = traceback.format_exc()
+            log(f"Erro fatal na preview: {e}", "error")
+            push_event("preview_error", message=f"Erro inesperado: {str(e)[:200]}")
             with lock:
                 state["is_running"] = False
                 state["running"] = False

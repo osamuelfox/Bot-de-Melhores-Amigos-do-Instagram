@@ -1093,9 +1093,13 @@
 
         <div class="spinner" id="preview-spinner" style="margin:20px auto;width:28px;height:28px;border-width:3px"></div>
 
+        <!-- Botão que aparece apenas quando há erro na busca -->
+        <button id="preview-error-back" onclick="resetToMenu()" class="btn btn-secondary" style="display:none;max-width:200px;margin:16px auto 0">
+          ← Voltar ao Menu
+        </button>
+
         <div id="preview-actions" style="display:none;margin-top:16px">
 
-          <!-- Seletor de intervalo entre adições -->
           <div style="background:rgba(37,99,235,.06);border:1px solid rgba(59,130,246,.15);border-radius:10px;padding:16px 18px;margin-bottom:16px;text-align:left">
             
             <!-- Delay Slider -->
@@ -1270,20 +1274,38 @@
           setProgress(0, 0);
           break;
 
+        case 'preview_error':
+          // Erro durante a busca: exibe na tela de preview
+          document.getElementById('preview-spinner').style.display = 'none';
+          document.getElementById('preview-title').textContent = '❌ Erro ao buscar usuários';
+          document.getElementById('preview-sub').textContent = ev.message || 'Erro desconhecido. Tente novamente.';
+          document.getElementById('preview-actions').style.display = 'none';
+          // Mostra um botão de cancelar
+          const errBackBtn = document.getElementById('preview-error-back');
+          if (errBackBtn) errBackBtn.style.display = 'block';
+          isRunning = false;
+          break;
+
         case 'progress': setProgress(ev.done, ev.total); break;
 
         case 'log': 
-          appendLog(ev.message, ev.level || 'info'); 
-          // Se ainda está na tela de login, atualiza a mensagem lá também
-          if (!isLoggedIn && !isRunning) {
-             setLoginStatus('loading', ev.message);
+          appendLog(ev.message, ev.level || 'info');
+          // Destaca erros críticos na tela de progresso
+          if (ev.level === 'error' && isRunning) {
+            showProgressError(ev.message);
           }
+          break;
+
+        // Mensagens específicas do fluxo de login (nunca aparecem em outras telas)
+        case 'login_progress':
+          setLoginStatus('loading', ev.message);
           break;
 
         case 'countdown': break;
 
         case 'operation_done':
           isRunning = false;
+          hideProgressError();
           showSection('done');
           document.getElementById('done-sub').textContent =
             `${ev.done} de ${ev.total} usuários adicionados aos Melhores Amigos.`;
@@ -1448,15 +1470,32 @@
 
     async function startVisualLogin() {
       disableLoginBtns();
-      setLoginStatus('loading', 'Abrindo Chrome para login visual...');
+      setLoginStatus('loading', 'Abrindo navegador para login...');
+      
+      // Timeout de 5 minutos para o login visual
+      const loginTimeout = setTimeout(() => {
+        if (!isLoggedIn) {
+          setLoginStatus('error', '⏰ Tempo esgotado. O navegador foi aberto mas nenhum login foi detectado em 5 minutos. Tente novamente.');
+          enableLoginBtns();
+        }
+      }, 5 * 60 * 1000);
+      
       try {
-        await fetch('/api/login/visual', {
+        const res = await fetch('/api/login/visual', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({}),
         });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          clearTimeout(loginTimeout);
+          setLoginStatus('error', '❌ Erro no servidor: ' + (data.message || res.status));
+          enableLoginBtns();
+        }
+        // sucesso é notificado via SSE (login_success)
       } catch (err) {
-        setLoginStatus('error', 'Erro de comunicação com o servidor.');
+        clearTimeout(loginTimeout);
+        setLoginStatus('error', '❌ Não foi possível conectar ao servidor. O bot está rodando?');
         enableLoginBtns();
       }
     }
@@ -1493,23 +1532,56 @@
       document.getElementById('preview-actions').style.display = 'none';
       document.getElementById('log-list').innerHTML = '';
       setProgress(0, 0);
+
+      // Timeout de segurança: se o preview travar por mais de 3 minutos, avisa
+      const previewTimeout = setTimeout(() => {
+        if (document.getElementById('preview-spinner').style.display !== 'none') {
+          document.getElementById('preview-title').textContent = '⏰ Buscando... (isso está demorando)';
+          document.getElementById('preview-sub').textContent = 'O Instagram pode estar lento ou a sessão expirou. Aguarde mais um momento ou cancele e faça login novamente.';
+        }
+      }, 3 * 60 * 1000);
+
       try {
-        await fetch('/api/start', {
+        const res = await fetch('/api/start', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ mode }),
         });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          clearTimeout(previewTimeout);
+          document.getElementById('preview-title').textContent = '❌ Erro ao buscar usuários';
+          document.getElementById('preview-sub').textContent = data.error || 'Erro desconhecido. Tente novamente.';
+          document.getElementById('preview-spinner').style.display = 'none';
+          isRunning = false;
+        }
       } catch (err) {
-        appendLog('Erro ao solicitar preview: ' + err, 'error');
+        clearTimeout(previewTimeout);
+        document.getElementById('preview-title').textContent = '❌ Servidor inacessível';
+        document.getElementById('preview-sub').textContent = 'Não foi possível conectar ao servidor. Verifique se o bot está rodando e tente novamente.';
+        document.getElementById('preview-spinner').style.display = 'none';
         isRunning = false;
       }
     }
 
+    async function cancelOperation() {
+      if (!confirm('Deseja cancelar a operação em andamento?')) return;
+      try {
+        await fetch('/api/reset', { method: 'POST' });
+      } catch (e) {}
+      isRunning = false;
+      hideProgressError();
+      showSection('dashboard');
+      document.getElementById('log-list').innerHTML = '';
+      setProgress(0, 0);
+    }
+
     async function confirmStartAddition() {
+      hideProgressError();
       showSection('progress');
       appendLog('Iniciando adição em massa...', 'info');
       try {
-        await fetch('/api/confirm_start', {
+        const res = await fetch('/api/confirm_start', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
@@ -1518,10 +1590,31 @@
             batch_size: selBatchSize 
           }),
         });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          appendLog('❌ Erro ao iniciar: ' + (data.error || 'Erro desconhecido'), 'error');
+          showProgressError('Falha ao comunicar com o servidor: ' + (data.error || res.status));
+          isRunning = false;
+        }
       } catch (err) {
-        appendLog('Erro ao iniciar adição: ' + err, 'error');
+        appendLog('❌ Servidor inacessível: ' + err, 'error');
+        showProgressError('Não foi possível conectar ao servidor. Verifique se o bot está rodando.');
         isRunning = false;
       }
+    }
+
+    function showProgressError(msg) {
+      const box = document.getElementById('progress-error-box');
+      const msgEl = document.getElementById('progress-error-msg');
+      if (box && msgEl) {
+        msgEl.textContent = msg;
+        box.style.display = 'block';
+      }
+    }
+
+    function hideProgressError() {
+      const box = document.getElementById('progress-error-box');
+      if (box) box.style.display = 'none';
     }
 
     function onDelaySlider(input) {
@@ -1608,6 +1701,11 @@
       showSection('dashboard');
       document.getElementById('log-list').innerHTML = '';
       setProgress(0, 0);
+      // Reseta estado de erros da preview
+      const errBtn = document.getElementById('preview-error-back');
+      if (errBtn) errBtn.style.display = 'none';
+      const previewSpinner = document.getElementById('preview-spinner');
+      if (previewSpinner) previewSpinner.style.display = 'block';
       ['followers','following','both','mutuals'].forEach(m =>
         document.getElementById('btn-' + m).classList.remove('active')
       );
